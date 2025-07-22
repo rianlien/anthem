@@ -1,0 +1,153 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Project Anthem - PoC Phase 1</title>
+    
+    <!-- Tailwind CSS via CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Lora:ital,wght@1,400;1,500&display=swap" rel="stylesheet">
+
+    <!-- 外部CSSファイルを読み込み -->
+    <link rel="stylesheet" href="style.css">
+</head>
+<body class="antialiased">
+
+    <div id="app" class="container mx-auto p-4 max-w-4xl">
+
+        <!-- ===== 画面1: 楽曲選択画面 ===== -->
+        <div id="selection-screen">
+            <header class="flex justify-between items-center mb-6">
+                <h1 class="text-2xl font-bold tracking-tighter">Project Anthem</h1>
+                <button class="bg-zinc-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-zinc-700 transition-colors">
+                    Connect Wallet
+                </button>
+            </header>
+
+            <main>
+                <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mb-6">
+                    <h2 class="text-lg font-semibold mb-2">Step 1: あなたの感情を揺さぶる10曲を選ぶ</h2>
+                    <p class="text-zinc-400 text-sm mb-4">Spotifyからお気に入りの曲を検索して、あなたの「今」を表現する10曲のリストを作成してください。</p>
+                    <button id="login-spotify-btn" class="w-full bg-green-500 text-white font-bold py-2 px-4 rounded-lg flex items-center justify-center hover:bg-green-600 transition-colors">
+                        <svg class="w-5 h-5 mr-2" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2C6.477 2 2 6.477 2 12s4.477 10 10 10 10-4.477 10-10S17.523 2 12 2zm4.594 14.395c-.19.303-.56.404-.864.213-2.53-1.543-5.71-1.886-9.453-1.033-.34.078-.68-.13-.758-.47-.078-.34.13-.68.47-.758 4.032-.91 7.483-.52 10.283 1.18.303.19.404.56.213.864zm.88-2.31c-.23.364-.695.485-1.06.254-2.88-1.76-7.22-2.28-10.45-1.25-.4.12-.82-.1-.94-.5-.12-.4.1-.82.5-.94 3.6-1.14 8.32-.57 11.57 1.4.36.23.48.69.25 1.06zm.13-2.43c-3.44-2.1-9.04-2.3-12.23-1.26-.456.15-.96-.12-1.11-.576-.15-.456.12-.96.576-1.11 3.57-1.14 9.6- .87 13.43 1.4.41.25.56.78.31 1.19-.25.41-.78.56-1.19.31z"/></svg>
+                        Login with Spotify
+                    </button>
+                </div>
+
+                <!-- 楽曲検索 -->
+                <div class="relative mb-4">
+                    <input type="text" id="search-input" placeholder="曲名やアーティスト名で検索..." class="w-full bg-zinc-800 border border-zinc-700 rounded-lg p-3 pl-10 focus:outline-none focus:ring-2 focus:ring-purple-500">
+                    <svg class="w-5 h-5 text-zinc-400 absolute top-1/2 left-3 -translate-y-1/2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"></path></svg>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    <!-- 検索結果リスト -->
+                    <div>
+                        <h3 class="font-semibold mb-3">検索結果</h3>
+                        <div id="search-results" class="bg-zinc-900 border border-zinc-800 rounded-xl p-2 h-64 overflow-y-auto space-y-2">
+                            <p class="text-zinc-500 text-center p-4">検索を開始してください</p>
+                        </div>
+                    </div>
+                    <!-- 選択中リスト -->
+                    <div>
+                        <h3 class="font-semibold mb-3">選択中の10曲 (<span id="selected-count">0</span>/10)</h3>
+                        <div id="selected-tracks" class="bg-zinc-900 border border-zinc-800 rounded-xl p-2 h-64 overflow-y-auto space-y-2">
+                             <p class="text-zinc-500 text-center p-4">ここに曲が追加されます</p>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="mt-6 text-center">
+                    <button id="create-card-btn" disabled class="btn-primary w-full md:w-auto bg-purple-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-700 transition-all text-lg">
+                        Emotion Cardを作成
+                    </button>
+                </div>
+            </main>
+        </div>
+
+        <!-- ===== 画面2: 結果表示画面 ===== -->
+        <div id="result-screen" class="hidden">
+            <header class="flex justify-between items-center mb-6">
+                <button id="back-btn" class="text-zinc-400 hover:text-white transition-colors flex items-center">
+                    <svg class="w-5 h-5 mr-2" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"></path></svg>
+                    戻る
+                </button>
+                <button class="bg-zinc-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-zinc-700 transition-colors">
+                    Connect Wallet
+                </button>
+            </header>
+
+            <main class="flex flex-col items-center">
+                <h2 class="text-lg font-semibold mb-2 text-center">Step 2: あなただけのEmotion Cardが完成しました</h2>
+                <p class="text-zinc-400 text-sm mb-6 text-center">このカードはあなたの選んだ曲から生まれた、世界に一つだけの詩です。</p>
+
+                <!-- Emotion Card -->
+                <div id="emotion-card-container" class="w-full max-w-md aspect-[3/4] p-2 rounded-2xl transition-all duration-500" style="background: linear-gradient(45deg, #C084FC, #4F46E5);">
+                    <div id="emotion-card" class="bg-zinc-900/80 backdrop-blur-sm w-full h-full rounded-xl p-6 md:p-8 flex flex-col justify-between border border-white/10 shadow-2xl">
+                        <!-- Emotion Card本体にはタイトルとビジュアルのみ -->
+                        <h3 id="card-title" class="text-2xl md:text-3xl font-bold text-white mb-4 text-center"></h3>
+                        <div class="flex-grow flex items-center justify-center">
+                            <img id="emotion-card-image" src="" alt="Emotion Card Visual" class="w-full h-full object-cover rounded-xl">
+                        </div>
+                        <div class="text-right">
+                             <p class="text-sm font-bold text-purple-300">Project Anthem</p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 分析テキストエリア -->
+                <div class="bg-zinc-900 border border-zinc-800 rounded-xl p-6 mt-8 w-full max-w-md text-left">
+                    <h3 class="text-xl font-bold mb-4">詳細分析</h3>
+
+                    <div class="mb-4">
+                        <p class="font-semibold text-zinc-400">Emotype名:</p>
+                        <p id="analysis-emotype-name" class="text-white"></p>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="font-semibold text-zinc-400">感情カラーパレット:</p>
+                        <div id="analysis-color-palette" class="flex space-x-2 mt-1"></div>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="font-semibold text-zinc-400">感情プロファイル（6軸分析）:</p>
+                        <pre id="analysis-emotional-profile" class="text-white whitespace-pre-wrap"></pre>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="font-semibold text-zinc-400">詩的ステートメント:</p>
+                        <p id="analysis-poetic-statement" class="text-white whitespace-pre-wrap"></p>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="font-semibold text-zinc-400">キーワードタグ:</p>
+                        <p id="analysis-keyword-tags" class="text-white"></p>
+                    </div>
+
+                    <div class="mb-4">
+                        <p class="font-semibold text-zinc-400">ソースプレイリストとコメント:</p>
+                        <p id="analysis-source-playlist-comment" class="text-white whitespace-pre-wrap"></p>
+                    </div>
+                </div>
+
+                <div class="mt-8 text-center">
+                    <button class="w-full md:w-auto bg-purple-600 text-white font-bold py-3 px-8 rounded-lg hover:bg-purple-700 transition-all text-lg">
+                        SBTとして発行する
+                    </button>
+                     <p class="text-xs text-zinc-500 mt-2">ウォレットを接続して、このカードをあなたの魂に刻みます。</p>
+                </div>
+            </main>
+        </div>
+
+    </div>
+
+    <!-- 外部JavaScriptファイルを読み込み -->
+    <script src="https://cdn.ethers.io/5.7.2/ethers.umd.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>

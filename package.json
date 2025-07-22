@@ -1,0 +1,23 @@
+{
+  "name": "spotify-integration-backend",
+  "version": "1.0.0",
+  "description": "Backend for Spotify integration",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@openzeppelin/contracts": "^4.9.0",
+    "@pinata/sdk": "^2.1.0",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.0",
+    "ethers": "^6.15.0",
+    "express": "^4.17.1",
+    "spotify-web-api-node": "^5.0.2"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.0.0",
+    "hardhat": "^2.25.0"
+  }
+}

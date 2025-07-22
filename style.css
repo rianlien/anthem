@@ -1,0 +1,36 @@
+/* 基本的なスタイルとフォント設定 */
+body {
+    font-family: 'Inter', sans-serif;
+    background-color: #09090B; /* shadcn/uiの背景色に近い色 */
+    color: #FAFAFA;
+}
+
+.poem {
+    font-family: 'Lora', serif;
+    font-style: italic;
+}
+
+/* スクロールバーのスタイル */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #18181B;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #3F3F46;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #52525B;
+}
+
+/* ボタンの活性・非活性時のスタイル */
+.btn-primary:disabled {
+    background-color: #27272A;
+    color: #71717A;
+    cursor: not-allowed;
+}
