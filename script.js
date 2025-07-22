@@ -650,10 +650,10 @@ document.addEventListener('DOMContentLoaded', () => {
             trackElement.className = 'flex items-center justify-between bg-zinc-800 p-2 rounded-lg';
             trackElement.innerHTML = `
                 <div class="flex items-center">
-                    <img src="${track.albumArt}" alt="Album Art" class="w-10 h-10 rounded mr-3">
+                    <img src="${track.album.images[0]?.url || ''}" alt="Album Art" class="w-10 h-10 rounded mr-3">
                     <div>
                         <p class="text-white font-semibold">${track.name}</p>
-                        <p class="text-zinc-400 text-sm">${track.artist}</p>
+                        <p class="text-zinc-400 text-sm">${track.artists.map(artist => artist.name).join(', ')}</p>
                     </div>
                 </div>
                 <button class="add-track-btn bg-purple-600 text-white px-3 py-1 rounded-md text-sm hover:bg-purple-700" data-track-id="${track.id}" data-track-name="${track.name}" data-artist-name="${track.artists.map(artist => artist.name).join(', ')}" data-album-art="${track.album.images[0]?.url || ''}">
