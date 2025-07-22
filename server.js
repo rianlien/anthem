@@ -96,8 +96,6 @@ const parseGeminiResponse = (responseText) => {
         keywordTags: [],
         sourcePlaylistComment: ''
     };
-    const lines = responseText.split('\n');
-    let currentSectionKey = null;
 
     const keyMap = {
         'EMOTYPE_NAME:': 'emotypeName',
@@ -107,19 +105,33 @@ const parseGeminiResponse = (responseText) => {
         'KEYWORD_TAGS:': 'keywordTags',
         'SOURCE_PLAYLIST_COMMENT:': 'sourcePlaylistComment'
     };
+    const labels = Object.keys(keyMap);
+
+    let lines = responseText.split('\n');
+
+    // 応答から、期待するラベルが最初に現れる行を探す
+    const firstLabelIndex = lines.findIndex(line => labels.some(label => line.startsWith(label)));
+
+    // ラベルが見つからなかった場合、または応答が空の場合は、空のデータを返す
+    if (firstLabelIndex === -1) {
+        return data;
+    }
+
+    // 最初のラベル行より前の不要な部分をすべて破棄する
+    lines = lines.slice(firstLabelIndex);
+
+    let currentSectionKey = null;
 
     for (const line of lines) {
         let isLabel = false;
-        for (const label in keyMap) {
+        for (const label of labels) {
             if (line.startsWith(label)) {
                 currentSectionKey = keyMap[label];
                 const content = line.substring(label.length).trim();
                 
                 if (currentSectionKey === 'colorPalette' || currentSectionKey === 'keywordTags') {
-                    // Handle comma-separated values
                     data[currentSectionKey] = content.split(',').map(s => s.trim()).filter(s => s);
                 } else {
-                    // Handle single or multi-line text
                     data[currentSectionKey] = content;
                 }
                 isLabel = true;
@@ -128,15 +140,18 @@ const parseGeminiResponse = (responseText) => {
         }
 
         if (!isLabel && currentSectionKey) {
-            // This is a continuation of the previous section.
-            // Append to multi-line fields.
+            // ラベル行でない場合は、直前のセクションの続きとみなし、改行して追加する
             if (['emotionalProfile', 'poeticStatement', 'sourcePlaylistComment'].includes(currentSectionKey)) {
-                 data[currentSectionKey] += '\n' + line;
+                 if (data[currentSectionKey]) {
+                    data[currentSectionKey] += '\n' + line;
+                 } else {
+                    data[currentSectionKey] = line;
+                 }
             }
         }
     }
     
-    // Trim final results to remove any leading/trailing whitespace from the process
+    // 最終的な結果から不要な空白を削除
     for(const key in data) {
         if (typeof data[key] === 'string') {
             data[key] = data[key].trim();
