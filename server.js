@@ -88,49 +88,61 @@ app.get('/search-tracks', (req, res) => {
 // Geminiからの応答を解析する共通関数
 const parseGeminiResponse = (responseText) => {
     if (!responseText) return {};
-    const data = {};
+    const data = {
+        emotypeName: '',
+        colorPalette: [],
+        emotionalProfile: '',
+        poeticStatement: '',
+        keywordTags: [],
+        sourcePlaylistComment: ''
+    };
     const lines = responseText.split('\n');
-    let currentSection = '';
-    let profileText = [];
-    let statementText = [];
+    let currentSectionKey = null;
 
-    const textToParse = responseText;
+    const keyMap = {
+        'EMOTYPE_NAME:': 'emotypeName',
+        'COLOR_PALETTE:': 'colorPalette',
+        'EMOTIONAL_PROFILE:': 'emotionalProfile',
+        'POETIC_STATEMENT:': 'poeticStatement',
+        'KEYWORD_TAGS:': 'keywordTags',
+        'SOURCE_PLAYLIST_COMMENT:': 'sourcePlaylistComment'
+    };
 
-    const parsedLines = textToParse.split('\n');
+    for (const line of lines) {
+        let isLabel = false;
+        for (const label in keyMap) {
+            if (line.startsWith(label)) {
+                currentSectionKey = keyMap[label];
+                const content = line.substring(label.length).trim();
+                
+                if (currentSectionKey === 'colorPalette' || currentSectionKey === 'keywordTags') {
+                    // Handle comma-separated values
+                    data[currentSectionKey] = content.split(',').map(s => s.trim()).filter(s => s);
+                } else {
+                    // Handle single or multi-line text
+                    data[currentSectionKey] = content;
+                }
+                isLabel = true;
+                break;
+            }
+        }
 
-    for (const line of parsedLines) {
-        if (line.startsWith('EMOTYPE_NAME:')) {
-            data.emotypeName = line.replace('EMOTYPE_NAME:', '').trim();
-            currentSection = '';
-        } else if (line.startsWith('COLOR_PALETTE:')) {
-            data.colorPalette = line.replace('COLOR_PALETTE:', '').trim().split(',').map(c => c.trim());
-            currentSection = '';
-        } else if (line.startsWith('EMOTIONAL_PROFILE:')) {
-            currentSection = 'EMOTIONAL_PROFILE';
-            profileText = []; // 新しいセクションの開始時にリセット
-        } else if (line.startsWith('POETIC_STATEMENT:')) {
-            statementText = [line.replace('POETIC_STATEMENT:', '').trim()];
-            currentSection = 'POETIC_STATEMENT';
-        } else if (line.startsWith('KEYWORD_TAGS:')) {
-            data.keywordTags = line.replace('KEYWORD_TAGS:', '').trim().split(',').map(t => t.trim());
-            currentSection = '';
-        } else if (line.startsWith('SOURCE_PLAYLIST_COMMENT:')) {
-            data.sourcePlaylistComment = line.replace('SOURCE_PLAYLIST_COMMENT:', '').trim();
-            currentSection = 'SOURCE_PLAYLIST_COMMENT';
-        } else {
-            if (currentSection === 'EMOTIONAL_PROFILE') {
-                profileText.push(line.trim());
-            } else if (currentSection === 'POETIC_STATEMENT') {
-                statementText.push(line.trim());
+        if (!isLabel && currentSectionKey) {
+            // This is a continuation of the previous section.
+            // Append to multi-line fields.
+            if (['emotionalProfile', 'poeticStatement', 'sourcePlaylistComment'].includes(currentSectionKey)) {
+                 data[currentSectionKey] += '\n' + line;
             }
         }
     }
-    if (profileText.length > 0) {
-        data.emotionalProfile = profileText.join('\n').trim();
+    
+    // Trim final results to remove any leading/trailing whitespace from the process
+    for(const key in data) {
+        if (typeof data[key] === 'string') {
+            data[key] = data[key].trim();
+        }
     }
-    if (statementText.length > 0) {
-        data.poeticStatement = statementText.join('\n').trim();
-    }
+
     return data;
 };
 
