@@ -31,10 +31,8 @@ document.addEventListener('DOMContentLoaded', () => {
     let currentAccount = null; // 接続中のウォレットアドレス
 
     // Polygon Amoy Testnetのコントラクト情報
-    const CONTRACT_ADDRESS = "0x0C70206e12c0B081a77e26d72E550f948d67550a"; // ここにデプロイしたコントラクトアドレスを貼り付ける
+    const CONTRACT_ADDRESS = "0x726B87457802e2Ea8BF3cB384A0E6CB18927b0B1"; // デプロイしたコントラクトアドレス
     const CONTRACT_ABI = [
-        // ここにSoulboundNFT.jsonからコピーしたABIを貼り付ける
-        // 例: {"inputs":[...],"name":"mint","outputs":[...],"stateMutability":"nonpayable","type":"function"}, ...
         {
           "inputs": [
             {
@@ -662,8 +660,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     追加
                 </button>
             `;
-            selectedTracksDiv.appendChild(trackElement);
+            searchResultsDiv.appendChild(trackElement);
         });
+
+        selectedCountSpan.textContent = selectedTracks.length;
 
         // 「追加」ボタンのイベントリスナー
         searchResultsDiv.querySelectorAll('.add-track-btn').forEach(button => {
@@ -814,6 +814,24 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // ウォレット接続
+    connectWalletBtn.addEventListener('click', async () => {
+        if (typeof window.ethereum !== 'undefined') {
+            try {
+                const provider = new ethers.providers.Web3Provider(window.ethereum); // プロバイダーを作成
+                const accounts = await provider.send("eth_requestAccounts", []); // アカウントをリクエスト
+                currentAccount = accounts[0];
+                connectWalletBtn.textContent = `Connected: ${currentAccount.substring(0, 6)}...${currentAccount.substring(currentAccount.length - 4)}`;
+                alert('ウォレットが接続されました！');
+            } catch (error) {
+                console.error('Error connecting to MetaMask:', error);
+                alert('MetaMaskへの接続に失敗しました。');
+            }
+        } else {
+            alert('MetaMaskがインストールされていません。インストールしてください。');
+        }
+    });
+
     // 「SBTとして発行する」ボタンのイベントリスナー
     if (issueSbtBtn) {
         issueSbtBtn.addEventListener('click', async () => {
@@ -821,9 +839,26 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('まずEmotion Cardを生成してください。');
                 return;
             }
-            // ここにSBT発行ロジックを実装
-            alert(`SBT発行準備完了！メタデータURL: ${metadataIpfsUrl}`);
-            // 実際にはMetaMaskを接続し、コントラクトを呼び出す
+            if (!currentAccount) {
+                alert('ウォレットを接続してください。');
+                return;
+            }
+
+            try {
+                const provider = new ethers.providers.Web3Provider(window.ethereum); // プロバイダーを作成
+                const signer = provider.getSigner(); // 署名者を取得
+                const soulboundNFT = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer); // コントラクトインスタンス
+
+                // mint関数を呼び出す
+                const tx = await soulboundNFT.mint(currentAccount, metadataIpfsUrl);
+                await tx.wait(); // トランザクションが承認されるまで待つ
+
+                alert(`SBTが正常に発行されました！トランザクションハッシュ: ${tx.hash}`);
+                console.log('Minted SBT with transaction hash:', tx.hash);
+            } catch (error) {
+                console.error('Error minting SBT:', error);
+                alert(`SBTの発行に失敗しました。エラー: ${error.message}`);
+            }
         });
     }
 
