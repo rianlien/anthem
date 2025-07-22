@@ -27,8 +27,9 @@ document.addEventListener('DOMContentLoaded', () => {
     let selectedTracks = [];
     let accessToken = null; // Spotifyのアクセストークンを保持
     let clientId = null; // バックエンドから取得する
-    let metadataIpfsUrl = null; // IPFSにアップロードされたメタデータのURL
     let currentAccount = null; // 接続中のウォレットアドレス
+    let generatedCardData = null; // 生成されたカードのテキストデータを保持
+    let generatedImageData = null; // 生成されたカードの画像データ(base64)を保持
 
     // Polygon Amoy Testnetのコントラクト情報
     const CONTRACT_ADDRESS = "0x726B87457802e2Ea8BF3cB384A0E6CB18927b0B1"; // デプロイしたコントラクトアドレス
@@ -748,9 +749,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // 「Emotion Cardを作成」ボタンのイベントリスナー
     if (createCardBtn) {
-        createCardBtn.addEventListener('click', async () => { // asyncを追加
+        createCardBtn.addEventListener('click', async () => {
             if (selectedTracks.length === 10) {
-                // 画面を切り替える前に詩を生成
                 try {
                     const response = await fetch('http://localhost:8888/generate-poem', {
                         method: 'POST',
@@ -766,47 +766,20 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     const data = await response.json();
 
-                    // Emotion Card本体の更新
-                    cardTitle.textContent = data.emotypeName; // Emotype名をタイトルに
-                    // 画像データを設定
-                    if (data.imageData) {
-                        emotionCardImage.src = `data:image/jpeg;base64,${data.imageData}`;
-                    } else {
-                        // 画像データがない場合のフォールバック
-                        emotionCardImage.src = ''; // またはデフォルト画像
-                        emotionCardContainer.style.background = 'linear-gradient(45deg, #C084FC, #4F46E5)'; // デフォルトのグラデーション
-                    }
+                    // 生成されたデータを保存
+                    generatedCardData = data;
+                    generatedImageData = data.imageData; // base64画像データ
 
-                    // 分析テキストエリアの更新
-                    analysisEmotypeName.textContent = data.emotypeName || 'N/A';
-
-                    analysisColorPalette.innerHTML = ''; // 既存のカラーパレットをクリア
-                    if (data.colorPalette && data.colorPalette.length > 0) {
-                        data.colorPalette.forEach(color => {
-                            const colorDiv = document.createElement('div');
-                            colorDiv.className = 'w-6 h-6 rounded-full border border-zinc-700';
-                            colorDiv.style.backgroundColor = color;
-                            analysisColorPalette.appendChild(colorDiv);
-                        });
-                    } else {
-                        analysisColorPalette.textContent = 'N/A';
-                    }
-
-                    analysisEmotionalProfile.textContent = data.emotionalProfile || 'N/A';
-                    analysisPoeticStatement.textContent = data.poeticStatement || 'N/A';
-                    analysisKeywordTags.textContent = (data.keywordTags && data.keywordTags.length > 0) ? data.keywordTags.join(', ') : 'N/A';
-                    analysisSourcePlaylistComment.textContent = data.sourcePlaylistComment || 'N/A';
+                    // Emotion CardのUIを更新
+                    updateCardDisplay(data);
 
                     // 画面を切り替える
                     selectionScreen.classList.add('hidden');
                     resultScreen.classList.remove('hidden');
 
-                    // メタデータIPFS URLを保存
-                    metadataIpfsUrl = data.metadataIpfsUrl;
-
                 } catch (error) {
-                    console.error('Error generating poem:', error);
-                    alert('詩の生成中にエラーが発生しました。');
+                    console.error('Error generating emotion card:', error);
+                    alert('Emotion Cardの生成中にエラーが発生しました。');
                 }
             } else {
                 alert('10曲選択してください。');
@@ -814,12 +787,43 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
 
+    // カード表示を更新する関数
+    function updateCardDisplay(data) {
+        cardTitle.textContent = data.emotypeName || 'Emotion Card';
+        if (data.imageData) {
+            emotionCardImage.src = `data:image/jpeg;base64,${data.imageData}`;
+            emotionCardImage.style.display = 'block';
+            emotionCardContainer.style.background = '';
+        } else {
+            emotionCardImage.src = '';
+            emotionCardImage.style.display = 'none';
+            emotionCardContainer.style.background = 'linear-gradient(45deg, #C084FC, #4F46E5)';
+        }
+
+        analysisEmotypeName.textContent = data.emotypeName || 'N/A';
+        analysisColorPalette.innerHTML = '';
+        if (data.colorPalette && data.colorPalette.length > 0) {
+            data.colorPalette.forEach(color => {
+                const colorDiv = document.createElement('div');
+                colorDiv.className = 'w-6 h-6 rounded-full border border-zinc-700';
+                colorDiv.style.backgroundColor = color;
+                analysisColorPalette.appendChild(colorDiv);
+            });
+        } else {
+            analysisColorPalette.textContent = 'N/A';
+        }
+        analysisEmotionalProfile.textContent = data.emotionalProfile || 'N/A';
+        analysisPoeticStatement.textContent = data.poeticStatement || 'N/A';
+        analysisKeywordTags.textContent = (data.keywordTags && data.keywordTags.length > 0) ? data.keywordTags.join(', ') : 'N/A';
+        analysisSourcePlaylistComment.textContent = data.sourcePlaylistComment || 'N/A';
+    }
+
     // ウォレット接続
     connectWalletBtn.addEventListener('click', async () => {
         if (typeof window.ethereum !== 'undefined') {
             try {
-                const provider = new ethers.providers.Web3Provider(window.ethereum); // プロバイダーを作成
-                const accounts = await provider.send("eth_requestAccounts", []); // アカウントをリクエスト
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const accounts = await provider.send("eth_requestAccounts", []);
                 currentAccount = accounts[0];
                 connectWalletBtn.textContent = `Connected: ${currentAccount.substring(0, 6)}...${currentAccount.substring(currentAccount.length - 4)}`;
                 alert('ウォレットが接続されました！');
@@ -835,7 +839,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // 「SBTとして発行する」ボタンのイベントリスナー
     if (issueSbtBtn) {
         issueSbtBtn.addEventListener('click', async () => {
-            if (!metadataIpfsUrl) {
+            if (!generatedCardData) {
                 alert('まずEmotion Cardを生成してください。');
                 return;
             }
@@ -845,16 +849,38 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const provider = new ethers.providers.Web3Provider(window.ethereum); // プロバイダーを作成
-                const signer = provider.getSigner(); // 署名者を取得
-                const soulboundNFT = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer); // コントラクトインスタンス
+                // 1. IPFSへのアップロードとメタデータURLの取得
+                const prepResponse = await fetch('http://localhost:8888/prepare-for-mint', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ 
+                        cardData: generatedCardData, 
+                        imageData: generatedImageData 
+                    }),
+                });
 
-                // mint関数を呼び出す
+                if (!prepResponse.ok) {
+                    throw new Error(`HTTP error! status: ${prepResponse.status}`);
+                }
+                const { metadataIpfsUrl } = await prepResponse.json();
+
+                if (!metadataIpfsUrl) {
+                    throw new Error('Failed to get metadata URL from server.');
+                }
+
+                // 2. スマートコントラクトを呼び出してミント
+                const provider = new ethers.providers.Web3Provider(window.ethereum);
+                const signer = provider.getSigner();
+                const soulboundNFT = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);
+
                 const tx = await soulboundNFT.mint(currentAccount, metadataIpfsUrl);
-                await tx.wait(); // トランザクションが承認されるまで待つ
+                await tx.wait();
 
                 alert(`SBTが正常に発行されました！トランザクションハッシュ: ${tx.hash}`);
                 console.log('Minted SBT with transaction hash:', tx.hash);
+
             } catch (error) {
                 console.error('Error minting SBT:', error);
                 alert(`SBTの発行に失敗しました。エラー: ${error.message}`);
