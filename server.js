@@ -122,6 +122,29 @@ const parseGeminiResponse = (responseText) => {
     // 最初のラベル行より前の不要な部分をすべて破棄する
     lines = lines.slice(firstLabelIndex);
 
+    // END_OF_ANALYSISマーカー以降の行を削除
+    const endMarkerIndex = lines.indexOf('--- END_OF_ANALYSIS ---');
+    if (endMarkerIndex !== -1) {
+        lines = lines.slice(0, endMarkerIndex);
+    }
+
+    // 画像生成に関する説明文を削除
+    const imageDescriptionMarkers = [
+        "私は、上記の分析に基づき、",
+        "抽象的な画像を生成します。"
+    ];
+
+    for (let i = 0; i < lines.length; i++) {
+        const line = lines[i].trim();
+        for (const marker of imageDescriptionMarkers) {
+            if (line.startsWith(marker)) {
+                lines = lines.slice(0, i); // マーカーが見つかった行から後ろを削除
+                break; // 内側のループを抜ける
+            }
+        }
+        if (lines.length <= i) break; // 行が削除された場合、外側のループも抜ける
+    }
+
     let currentSectionKey = null;
 
     for (const line of lines) {
@@ -174,7 +197,28 @@ app.post('/generate-poem', async (req, res) => {
 
   try {
     const trackInfo = selectedTracks.map(track => `曲名: ${track.name}, アーティスト: ${track.artist}`).join('\n');
-    const combinedPrompt = `以下の10曲から、ユーザーの深層心理を分析し、その結果を基に「感情の詩」と、その感情を象徴する抽象的な画像を生成してください.\n\n出力は以下のフォーマットに従ってください。各セクションは指定されたラベルで始めてください。\n\nEMOTYPE_NAME: [ここにEmotype名を記述。例: 蒼き情熱の旋律]\nCOLOR_PALETTE: [プライマリカラーのHEXコード], [セカンダリカラーのHEXコード], [アクセントカラーのHEXコード] (例: #FF0000, #00FF00, #0000FF)\nEMOTIONAL_PROFILE:\n1. 情緒トーン分布（喜怒哀楽／希望／諦観／ノスタルジアなどの含有割合）\n2. 認知スタンス傾向（内向／外向、理性／感性、分析型／感受型など）\n3. 感情処理パターン（共鳴型／昇華型／放流型など）\n4. 時間指向（過去回帰／現在肯定／未来投影のどれが多いか）\n5. 言語vs音感応性（歌詞に引かれるか、音で感じるタイプか）\n6. 他者との関係性傾向（共鳴欲求／孤独志向／承認衝動など）\nPOETIC_STATEMENT: [ここに詩的なステートメントを記述。複数行可]\nKEYWORD_TAGS: [キーワード1], [キーワード2], [キーワード3] (例: 希望, 内省, 躍動)\nSOURCE_PLAYLIST_COMMENT: [ここにソースプレイリストに関するコメントを記述。例: このプレイリストは、ユーザーの多面的な感情と成長の軌跡を映し出しています。]\n\n--- 選択された曲 ---\n${trackInfo}\n\n抽象的な画像を生成するための指示: 上記の分析結果とキーワード、カラーパレットを参考に、抽象的で芸術的な画像を生成してください。`;
+    const combinedPrompt = `以下の10曲から、ユーザーの深層心理を分析し、その結果を基に「感情の詩」と、その感情を象徴する抽象的な画像を生成してください.
+
+出力は以下のフォーマットに従ってください。各セクションは指定されたラベルで始めてください。
+
+EMOTYPE_NAME: [ここにEmotype名を記述。例: 蒼き情熱の旋律]
+COLOR_PALETTE: [プライマリカラーのHEXコード], [セカンダリカラーのHEXコード], [アクセントカラーのHEXコード] (例: #FF0000, #00FF00, #0000FF)
+EMOTIONAL_PROFILE:
+1. 情緒トーン分布（喜怒哀楽／希望／諦観／ノスタルジアなどの含有割合）
+2. 認知スタンス傾向（内向／外向、理性／感性、分析型／感受型など）
+3. 感情処理パターン（共鳴型／昇華型／放流型など）
+4. 時間指向（過去回帰／現在肯定／未来投影のどれが多いか）
+5. 言語vs音感応性（歌詞に引かれるか、音で感じるタイプか）
+6. 他者との関係性傾向（共鳴欲求／孤独志向／承認衝動など）
+POETIC_STATEMENT: [ここに詩的なステートメントを記述。複数行可]
+KEYWORD_TAGS: [キーワード1], [キーワード2], [キーワード3] (例: 希望, 内省, 躍動)
+SOURCE_PLAYLIST_COMMENT: [ここにソースプレイリストに関するコメントを記述。例: このプレイリストは、ユーザーの多面的な感情と成長の軌跡を映し出しています。]
+--- END_OF_ANALYSIS ---
+
+--- 選択された曲 ---
+${trackInfo}
+
+抽象的な画像を生成するための指示: 上記の分析結果とキーワード、カラーパレットを参考に、抽象的で芸術的な画像を生成してください。`;
 
     const result = await model.generateContent({
       contents: [{ parts: [{ text: combinedPrompt }] }],
@@ -195,6 +239,16 @@ app.post('/generate-poem', async (req, res) => {
         imageData = part.inlineData.data;
       }
     }
+
+    // 画像生成指示をテキストデータから削除
+    const imageInstructionMarker = "抽象的な画像を生成するための指示:";
+    const markerIndex = textData.indexOf(imageInstructionMarker);
+    if (markerIndex !== -1) {
+        textData = textData.substring(0, markerIndex).trim();
+    }
+
+    console.log('Raw Gemini Text Data:', textData); // 追加
+    console.log('Raw Gemini Image Data (present/absent):', imageData ? 'Present' : 'Absent'); // 追加
 
     const parsedData = parseGeminiResponse(textData);
 

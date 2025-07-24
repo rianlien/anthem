@@ -754,6 +754,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (createCardBtn) {
         createCardBtn.addEventListener('click', async () => {
             if (selectedTracks.length === 10) {
+                // ボタンを無効化し、ローディング表示を追加
+                createCardBtn.disabled = true;
+                createCardBtn.textContent = '生成中...';
+                createCardBtn.classList.add('opacity-50', 'cursor-not-allowed');
+
                 try {
                     const response = await fetch('http://localhost:8888/generate-poem', {
                         method: 'POST',
@@ -782,7 +787,12 @@ document.addEventListener('DOMContentLoaded', () => {
 
                 } catch (error) {
                     console.error('Error generating emotion card:', error);
-                    alert('Emotion Cardの生成中にエラーが発生しました。');
+                    alert('Emotion Cardの生成中にエラーが発生しました。' + error.message);
+                } finally {
+                    // 処理が完了したらボタンを元に戻す
+                    createCardBtn.disabled = false;
+                    createCardBtn.textContent = 'Emotion Cardを作成';
+                    createCardBtn.classList.remove('opacity-50', 'cursor-not-allowed');
                 }
             } else {
                 alert('10曲選択してください。');
@@ -792,15 +802,19 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // カード表示を更新する関数
     function updateCardDisplay(data) {
+        const imageFallbackMessage = document.getElementById('image-fallback-message');
+
         cardTitle.textContent = data.emotypeName || 'Emotion Card';
         if (data.imageData) {
             emotionCardImage.src = `data:image/jpeg;base64,${data.imageData}`;
             emotionCardImage.style.display = 'block';
             emotionCardContainer.style.background = '';
+            imageFallbackMessage.classList.add('hidden'); // 画像がある場合はメッセージを非表示
         } else {
             emotionCardImage.src = '';
             emotionCardImage.style.display = 'none';
             emotionCardContainer.style.background = 'linear-gradient(45deg, #C084FC, #4F46E5)';
+            imageFallbackMessage.classList.remove('hidden'); // 画像がない場合はメッセージを表示
         }
 
         analysisEmotypeName.textContent = data.emotypeName || 'N/A';
