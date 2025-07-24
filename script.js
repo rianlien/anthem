@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const resultScreen = document.getElementById('result-screen');
     const backBtn = document.getElementById('back-btn');
     const issueSbtBtn = document.getElementById('issue-sbt-btn'); // SBT発行ボタン
-    const connectWalletBtn = document.querySelector('header button'); // Connect Walletボタン
+    const connectWalletBtns = document.querySelectorAll('#connect-wallet-btn'); // Connect Walletボタン (複数対応)
 
     // Emotion Card本体の要素
     const emotionCardContainer = document.getElementById('emotion-card-container');
@@ -564,6 +564,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // ページロード時に設定を取得
     fetchConfig();
 
+    // ページロード時にサイレントにウォレット接続を試みる
+    silentlyConnectWallet();
+
     // Spotifyログインボタンのイベントリスナー
     if (spotifyLoginBtn) {
         spotifyLoginBtn.addEventListener('click', () => {
@@ -571,7 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
                 alert('クライアントIDがまだ読み込まれていません。しばらくお待ちください。');
                 return;
             }
-            const scopes = 'user-read-private user-read-email user-top-read';
+            const scopes = 'user-read-private user-read-email user-top-read playlist-modify-public';
             window.location.href = `https://accounts.spotify.com/authorize?client_id=${clientId}&response_type=code&redirect_uri=${encodeURIComponent(redirectUri)}&scope=${encodeURIComponent(scopes)}`;
         });
     }
@@ -819,34 +822,71 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     // ウォレット接続
-    connectWalletBtn.addEventListener('click', async () => {
+    connectWalletBtns.forEach(btn => {
+        btn.addEventListener('click', async () => {
+            if (typeof window.ethereum !== 'undefined') {
+                try {
+                    const provider = new ethers.providers.Web3Provider(window.ethereum);
+                    const accounts = await provider.send("eth_requestAccounts", []);
+                    currentAccount = accounts[0];
+                    updateWalletButtons(); // ボタン表示を更新
+                    alert('ウォレットが接続されました！');
+                } catch (error) {
+                    console.error('Error connecting to MetaMask:', error);
+                    alert('MetaMaskへの接続に失敗しました。');
+                }
+            } else {
+                alert('MetaMaskがインストールされていません。インストールしてください。');
+            }
+        });
+    });
+
+    // ウォレットボタンの表示を更新する関数
+    function updateWalletButtons() {
+        if (currentAccount) {
+            const buttonText = `Connected: ${currentAccount.substring(0, 6)}...${currentAccount.substring(currentAccount.length - 4)}`;
+            connectWalletBtns.forEach(btn => btn.textContent = buttonText);
+        } else {
+            connectWalletBtns.forEach(btn => btn.textContent = 'Connect Wallet');
+        }
+    }
+
+    // ページロード時に、ユーザーの操作なしでウォレット接続を試みる関数
+    async function silentlyConnectWallet() {
         if (typeof window.ethereum !== 'undefined') {
             try {
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
-                const accounts = await provider.send("eth_requestAccounts", []);
-                currentAccount = accounts[0];
-                connectWalletBtn.textContent = `Connected: ${currentAccount.substring(0, 6)}...${currentAccount.substring(currentAccount.length - 4)}`;
-                alert('ウォレットが接続されました！');
+                // 既に接続が許可されているか確認
+                const accounts = await provider.listAccounts();
+                if (accounts.length > 0) {
+                    // 許可されていれば、アカウント情報を設定してUIを更新
+                    currentAccount = accounts[0];
+                    updateWalletButtons();
+                    console.log('Wallet connected silently.');
+                }
             } catch (error) {
-                console.error('Error connecting to MetaMask:', error);
-                alert('MetaMaskへの接続に失敗しました。');
+                console.error('Silent wallet connection failed:', error);
             }
-        } else {
-            alert('MetaMaskがインストールされていません。インストールしてください。');
         }
-    });
+    }
 
     // 「SBTとして発行する」ボタンのイベントリスナー
     if (issueSbtBtn) {
         issueSbtBtn.addEventListener('click', async () => {
+            console.log('Issue SBT button clicked.'); // Log: ボタンクリックを記録
+
             if (!generatedCardData) {
                 alert('まずEmotion Cardを生成してください。');
+                console.error('SBT Minting failed: generatedCardData is missing.');
                 return;
             }
             if (!currentAccount) {
                 alert('ウォレットを接続してください。');
+                console.error('SBT Minting failed: currentAccount is missing.');
                 return;
             }
+
+            console.log('Preparing for minting...', { cardData: generatedCardData, imageData: generatedImageData ? 'Image data present' : 'No image data' });
 
             try {
                 // 1. IPFSへのアップロードとメタデータURLの取得
@@ -861,16 +901,22 @@ document.addEventListener('DOMContentLoaded', () => {
                     }),
                 });
 
+                console.log('Response from /prepare-for-mint:', prepResponse.status);
+
                 if (!prepResponse.ok) {
-                    throw new Error(`HTTP error! status: ${prepResponse.status}`);
+                    const errorText = await prepResponse.text();
+                    throw new Error(`HTTP error! status: ${prepResponse.status}, body: ${errorText}`);
                 }
                 const { metadataIpfsUrl } = await prepResponse.json();
+
+                console.log('Received metadata URL:', metadataIpfsUrl);
 
                 if (!metadataIpfsUrl) {
                     throw new Error('Failed to get metadata URL from server.');
                 }
 
                 // 2. スマートコントラクトを呼び出してミント
+                console.log('Calling smart contract to mint...');
                 const provider = new ethers.providers.Web3Provider(window.ethereum);
                 const signer = provider.getSigner();
                 const soulboundNFT = new ethers.Contract(CONTRACT_ADDRESS, CONTRACT_ABI, signer);

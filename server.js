@@ -53,6 +53,8 @@ app.post('/exchange-token', (req, res) => {
         accessToken: data.body['access_token'],
         refreshToken: data.body['refresh_token'],
         expiresIn: data.body['expires_in'],
+        // ユーザー情報を取得して返す
+        userId: data.body['user_id'], // Spotify APIからユーザーIDを取得
       });
     })
     .catch(err => {
